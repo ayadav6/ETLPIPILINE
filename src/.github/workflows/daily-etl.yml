@@ -1,0 +1,44 @@
+name: Daily Financial Data ETL Job
+
+on:
+  workflow_dispatch: # Allows manual triggering
+  schedule:
+    - cron: '0 8 * * 1-5' # Runs at 8:00 AM UTC, Monday to Friday
+
+jobs:
+  run-etl-pipeline:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build and Run ETL Application
+        env:
+          SPRING_DATASOURCE_URL: ${{ secrets.DB_URL }}
+          SPRING_DATASOURCE_USERNAME: ${{ secrets.DB_USERNAME }}
+          SPRING_DATASOURCE_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          ALPHAVANTAGE_API_KEY: ${{ secrets.API_KEY }}
+        run: |
+          # The database service needs time to initialize
+          echo "Waiting for PostgreSQL to be ready..."
+          sleep 15 
+          mvn spring-boot:run
